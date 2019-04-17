@@ -1,10 +1,7 @@
 package ru.sergeidos;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 
 public class SegaNeytron {
 
@@ -15,7 +12,8 @@ public class SegaNeytron {
     final Neuron bias = new Neuron();
     final int[] layers;
     final int randomWeightMultiplier = 1;
-    static final int byteCount = 7; // Количество бит в числе
+    static final int byteCount = 20; // Количество бит в числе
+    static final int learningCount = 100; // На скольки первых числах обучаться
 
     final double epsilon = 0.00000000001;
 
@@ -32,16 +30,16 @@ public class SegaNeytron {
 
     {
         // Проинициализируем параметры
-        inputs = new double[100][];
-        expectedOutputs = new double[100][];
-        resultOutputs = new double[100][];
+        inputs = new double[learningCount][];
+        expectedOutputs = new double[learningCount][];
+        resultOutputs = new double[learningCount][];
 
-        for (int i=0; i<100; i++) {
+        for (int i=0; i<learningCount; i++) {
             resultOutputs[i] = new double[1];
             resultOutputs[i][0] = -1;
 
             inputs[i] = new double[byteCount];
-            inputs[i] = toAr(i); // Будем раскладывать по массиву двоичное значение, число 100 укладывается в 7 бит
+            inputs[i] = toAr(i); // Будем раскладывать по массиву двоичное значение
 
             expectedOutputs[i] = new double[1];
             expectedOutputs[i][0] = i % 2; // Идеальное число для обучения, 1.0 - нечетное, 0.0 - четное
@@ -108,12 +106,58 @@ public class SegaNeytron {
         // Замутим запуск обучения
         SegaNeytron segaNeytron = new SegaNeytron(byteCount, 2, 1);
         int maxRuns = 500000; // Максимальное количество эпох
-        double minErrorCondition = 0.001; // Минимальный размер допустимой среднеквадратичной ошибки
+        double minErrorCondition = 0.0001; // Минимальный размер допустимой среднеквадратичной ошибки
         if (segaNeytron.run(maxRuns, minErrorCondition)) {
+
+            // Тест
+            int err=0, ev=0, od=0;
+            List<Integer> l = new LinkedList<Integer>();
+            int cnt = (int) (Math.pow(2,byteCount)-1);
+            for (int i=1; i<cnt; i++ ) {
+                segaNeytron.setInput(toAr(i));
+                segaNeytron.activate();
+                double[] output = segaNeytron.getOutput();
+                if ((output[0]<0.5 && i%2==0) || (output[0]>=0.5 && i%2==1)) {
+                    //верно
+                } else {
+                    //не верно
+//                    System.out.println("На числе "+i+ " сетка тупит ("+output[0]+","+i%2+")");
+                    err++;
+                    l.add(i);
+                    if (i%2==0) {
+                        ev++;
+                    } else {
+                        od++;
+                    }
+
+                }
+            }
+            System.out.println("При обучении на числах от 1 до "+learningCount+", при тестовом прогоне на числах от 1 до "+ cnt +" сеть ошибласть в "+err+ " случаях ("+ev+" четных, "+od+" нечетных)");
+            if (l.size()>2) {
+                System.out.println("Вот три примера таких чисел:");
+                for (int i=0; i<=2; i++) {
+                    int x = new Random().nextInt(l.size());
+                    segaNeytron.setInput(toAr(l.get(x)));
+                    segaNeytron.activate();
+                    double[] output = segaNeytron.getOutput();
+                    System.out.println("Число "+l.get(x)+" сеть посчитала "+(output[0]<0.5?"четным":"нечетным")+" (предсказание="+output[0]+") а на самом деле оно "+(l.get(x)%2==0?"четное":"нечетное")+" (идеал="+l.get(x)%2+")") ;
+                }
+
+                segaNeytron.setInput(toAr(l.get(0)));
+                segaNeytron.activate();
+                double[] output = segaNeytron.getOutput();
+                System.out.println("Минимальное число "+l.get(0)+" сеть посчитала "+(output[0]<0.5?"четным":"нечетным")+" (предсказание="+output[0]+") а на самом деле оно "+(l.get(0)%2==0?"четное":"нечетное")+" (идеал="+l.get(0)%2+")") ;
+
+                segaNeytron.setInput(toAr(l.get(l.size()-1)));
+                segaNeytron.activate();
+                output = segaNeytron.getOutput();
+                System.out.println("Максимальное число "+l.get(l.size()-1)+" сеть посчитала "+(output[0]<0.5?"четным":"нечетным")+" (предсказание="+output[0]+") а на самом деле оно "+(l.get(l.size()-1)%2==0?"четное":"нечетное")+" (идеал="+l.get(l.size()-1)%2+")") ;
+            }
+
             Scanner scanner = new Scanner(System.in);
-            System.out.println("Введите число от 1 до 100");
+            System.out.println("Введите число >0");
             int enter = scanner.nextInt();
-            if (enter>0 && enter < 100) {
+            while (enter>0) {
                 double[] inValue = toAr(enter);
                 segaNeytron.setInput(inValue);
                 segaNeytron.activate();
@@ -121,10 +165,12 @@ public class SegaNeytron {
 
                 System.out.println("Наша нейронная сеть делает предсказание, что ваше число:");
                 if (output[0]<0.5) {
-                    System.out.println("Четное!!");
+                    System.out.println("Четное!!\n");
                 } else {
-                    System.out.println("Не четное!!11один");
+                    System.out.println("Не четное!!11один\n");
                 }
+                System.out.println("Введите число >0");
+                enter = scanner.nextInt();
             }
         }
 
